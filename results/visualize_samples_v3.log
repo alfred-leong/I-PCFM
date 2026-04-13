@@ -1,0 +1,323 @@
+Loaded model from /external1/alfred/pcfm_logs/burgers_ic/20000.pt (step ?)
+Loaded 67 test samples from datasets/data/burgers_test_nIC30_nBC30.h5, shape: torch.Size([67, 101, 101])
+Building hfuncs for 51 pre-screened samples...
+
+=== Running vanilla on 51 samples ===
+  Sample   1: OK
+  Sample   2: OK
+  Sample   3: OK
+  Sample   5: OK
+  Sample   6: OK
+  Sample   7: OK
+  Sample   9: OK
+  Sample  10: OK
+  Sample  11: OK
+  Sample  12: OK
+  Sample  14: OK
+  Sample  16: OK
+  Sample  20: OK
+  Sample  21: OK
+  Sample  22: OK
+  Sample  23: OK
+  Sample  25: OK
+  Sample  27: OK
+  Sample  28: OK
+  Sample  30: OK
+  Sample  31: OK
+  Sample  32: OK
+  Sample  33: OK
+  Sample  34: OK
+  Sample  35: OK
+  Sample  37: OK
+  Sample  38: OK
+  Sample  39: OK
+  Sample  41: OK
+  Sample  43: OK
+  Sample  44: OK
+  Sample  45: OK
+  Sample  46: OK
+  Sample  47: OK
+  Sample  48: OK
+  Sample  49: OK
+  Sample  50: OK
+  Sample  51: OK
+  Sample  52: OK
+  Sample  53: OK
+  Sample  54: OK
+  Sample  55: OK
+  Sample  57: OK
+  Sample  58: OK
+  Sample  59: OK
+  Sample  60: OK
+  Sample  62: OK
+  Sample  63: OK
+  Sample  64: OK
+  Sample  65: OK
+  Sample  67: OK
+
+=== Running pcfm_equality on 51 samples ===
+  Sample   1: OK
+  Sample   2: OK
+  Sample   3: OK
+  Sample   5: OK
+  Sample   6: OK
+  Sample   7: OK
+  Sample   9: OK
+  Sample  10: OK
+  Sample  11: OK
+  Sample  12: OK
+  Sample  14: OK
+  Sample  16: OK
+  Sample  20: OK
+  Sample  21: OK
+  Sample  22: OK
+  Sample  23: OK
+  Sample  25: OK
+  Sample  27: OK
+  Sample  28: OK
+  Sample  30: OK
+  Sample  31: OK
+  Sample  32: OK
+  Sample  33: OK
+  Sample  34: OK
+  Sample  35: OK
+  Sample  37: OK
+  Sample  38: OK
+  Sample  39: OK
+  Sample  41: OK
+  Sample  43: OK
+  Sample  44: OK
+  Sample  45: OK
+  Sample  46: OK
+  Sample  47: OK
+  Sample  48: OK
+  Sample  49: OK
+  Sample  50: OK
+  Sample  51: OK
+  Sample  52: OK
+  Sample  53: OK
+  Sample  54: OK
+  Sample  55: OK
+  Sample  57: OK
+  Sample  58: OK
+  Sample  59: OK
+  Sample  60: OK
+  Sample  62: OK
+  Sample  63: OK
+  Sample  64: OK
+  Sample  65: OK
+  Sample  67: OK
+
+=== Running ipcfm_a on 51 samples ===
+  Sample   1: OK
+  Sample   2: OK
+  Sample   3: OK
+  Sample   5: OK
+  Sample   6: OK
+  Sample   7: OK
+  Sample   9: OK
+  Sample  10: OK
+  Sample  11: OK
+  Sample  12: OK
+  Sample  14: OK
+  Sample  16: OK
+  Sample  20: OK
+  Sample  21: OK
+  Sample  22: OK
+  Sample  23: OK
+  Sample  25: OK
+  Sample  27: OK
+  Sample  28: OK
+  Sample  30: OK
+  Sample  31: OK
+  Sample  32: OK
+  Sample  33: OK
+  Sample  34: OK
+  Sample  35: OK
+  Sample  37: OK
+  Sample  38: OK
+  Sample  39: OK
+  Sample  41: OK
+  Sample  43: OK
+  Sample  44: OK
+  Sample  45: OK
+  Sample  46: OK
+  Sample  47: OK
+  Sample  48: OK
+  Sample  49: OK
+  Sample  50: OK
+  Sample  51: OK
+  Sample  52: OK
+  Sample  53: OK
+  Sample  54: OK
+  Sample  55: OK
+  Sample  57: OK
+  Sample  58: OK
+  Sample  59: OK
+  Sample  60: OK
+  Sample  62: OK
+  Sample  63: OK
+  Sample  64: OK
+  Sample  65: OK
+  Sample  67: OK
+
+=== Running ipcfm_b on 51 samples ===
+  Sample   1: OK
+  Sample   2: OK
+  Sample   3: OK
+  Sample   5: OK
+  Sample   6: OK
+  Sample   7: OK
+  Sample   9: OK
+  Sample  10: OK
+  Sample  11: OK
+  Sample  12: OK
+  Sample  14: OK
+  Sample  16: OK
+  Sample  20: OK
+  Sample  21: OK
+  Sample  22: OK
+  Sample  23: OK
+  Sample  25: OK
+  Sample  27: OK
+  Sample  28: OK
+  Sample  30: OK
+  Sample  31: OK
+  Sample  32: OK
+  Sample  33: OK
+  Sample  34: OK
+  Sample  35: OK
+  Sample  37: OK
+  Sample  38: OK
+  Sample  39: OK
+  Sample  41: OK
+  Sample  43: OK
+  Sample  44: OK
+  Sample  45: OK
+  Sample  46: OK
+  Sample  47: OK
+  Sample  48: OK
+  Sample  49: OK
+  Sample  50: OK
+  Sample  51: OK
+  Sample  52: OK
+  Sample  53: OK
+  Sample  54: OK
+  Sample  55: OK
+  Sample  57: OK
+  Sample  58: OK
+  Sample  59: OK
+  Sample  60: OK
+  Sample  62: OK
+  Sample  63: OK
+  Sample  64: OK
+  Sample  65: OK
+  Sample  67: OK
+
+=== Running ipcfm_c on 51 samples ===
+  Sample   1: OK
+  Sample   2: OK
+  Sample   3: OK
+  Sample   5: OK
+  Sample   6: OK
+  Sample   7: OK
+  Sample   9: OK
+  Sample  10: OK
+  Sample  11: OK
+  Sample  12: OK
+  Sample  14: OK
+  Sample  16: OK
+  Sample  20: OK
+  Sample  21: OK
+  Sample  22: OK
+  Sample  23: OK
+  Sample  25: OK
+  Sample  27: OK
+  Sample  28: OK
+  Sample  30: OK
+  Sample  31: OK
+  Sample  32: OK
+  Sample  33: OK
+  Sample  34: OK
+  Sample  35: OK
+  Sample  37: OK
+  Sample  38: OK
+  Sample  39: OK
+  Sample  41: OK
+  Sample  43: OK
+  Sample  44: OK
+  Sample  45: OK
+  Sample  46: OK
+  Sample  47: OK
+  Sample  48: OK
+  Sample  49: OK
+  Sample  50: OK
+  Sample  51: OK
+  Sample  52: OK
+  Sample  53: OK
+  Sample  54: OK
+  Sample  55: OK
+  Sample  57: OK
+  Sample  58: OK
+  Sample  59: OK
+  Sample  60: OK
+  Sample  62: OK
+  Sample  63: OK
+  Sample  64: OK
+  Sample  65: OK
+  Sample  67: OK
+
+=== Saving 51 heatmap PNGs ===
+Saved results/sample_heatmaps_v3/sample_001.png
+Saved results/sample_heatmaps_v3/sample_002.png
+Saved results/sample_heatmaps_v3/sample_003.png
+Saved results/sample_heatmaps_v3/sample_004.png
+Saved results/sample_heatmaps_v3/sample_005.png
+Saved results/sample_heatmaps_v3/sample_006.png
+Saved results/sample_heatmaps_v3/sample_007.png
+Saved results/sample_heatmaps_v3/sample_008.png
+Saved results/sample_heatmaps_v3/sample_009.png
+Saved results/sample_heatmaps_v3/sample_010.png
+Saved results/sample_heatmaps_v3/sample_011.png
+Saved results/sample_heatmaps_v3/sample_012.png
+Saved results/sample_heatmaps_v3/sample_013.png
+Saved results/sample_heatmaps_v3/sample_014.png
+Saved results/sample_heatmaps_v3/sample_015.png
+Saved results/sample_heatmaps_v3/sample_016.png
+Saved results/sample_heatmaps_v3/sample_017.png
+Saved results/sample_heatmaps_v3/sample_018.png
+Saved results/sample_heatmaps_v3/sample_019.png
+Saved results/sample_heatmaps_v3/sample_020.png
+Saved results/sample_heatmaps_v3/sample_021.png
+Saved results/sample_heatmaps_v3/sample_022.png
+Saved results/sample_heatmaps_v3/sample_023.png
+Saved results/sample_heatmaps_v3/sample_024.png
+Saved results/sample_heatmaps_v3/sample_025.png
+Saved results/sample_heatmaps_v3/sample_026.png
+Saved results/sample_heatmaps_v3/sample_027.png
+Saved results/sample_heatmaps_v3/sample_028.png
+Saved results/sample_heatmaps_v3/sample_029.png
+Saved results/sample_heatmaps_v3/sample_030.png
+Saved results/sample_heatmaps_v3/sample_031.png
+Saved results/sample_heatmaps_v3/sample_032.png
+Saved results/sample_heatmaps_v3/sample_033.png
+Saved results/sample_heatmaps_v3/sample_034.png
+Saved results/sample_heatmaps_v3/sample_035.png
+Saved results/sample_heatmaps_v3/sample_036.png
+Saved results/sample_heatmaps_v3/sample_037.png
+Saved results/sample_heatmaps_v3/sample_038.png
+Saved results/sample_heatmaps_v3/sample_039.png
+Saved results/sample_heatmaps_v3/sample_040.png
+Saved results/sample_heatmaps_v3/sample_041.png
+Saved results/sample_heatmaps_v3/sample_042.png
+Saved results/sample_heatmaps_v3/sample_043.png
+Saved results/sample_heatmaps_v3/sample_044.png
+Saved results/sample_heatmaps_v3/sample_045.png
+Saved results/sample_heatmaps_v3/sample_046.png
+Saved results/sample_heatmaps_v3/sample_047.png
+Saved results/sample_heatmaps_v3/sample_048.png
+Saved results/sample_heatmaps_v3/sample_049.png
+Saved results/sample_heatmaps_v3/sample_050.png
+Saved results/sample_heatmaps_v3/sample_051.png
+
+Done. 51 sample PNGs saved to results/sample_heatmaps_v3/

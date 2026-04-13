@@ -1,0 +1,31 @@
+Using device: cuda:0
+[WARNING] wandb init failed: No API key configured. Use `wandb login` to log in.
+Loaded model from /external1/alfred/pcfm_logs/burgers_ic/20000.pt (step ?)
+Loaded 32 test samples from datasets/data/burgers_test_nIC30_nBC30.h5, shape: torch.Size([32, 101, 101])
+
+============================================================
+Experiment 3: Runtime Breakdown
+============================================================
+
+Timing vanilla (3 trials)...
+  Trial 1: 87.8 ms/sample
+  Trial 2: 82.6 ms/sample
+  Trial 3: 82.5 ms/sample
+
+Timing pcfm_equality (3 trials)...
+  Trial 1: 1251.5 ms/sample
+  Trial 2: 1235.0 ms/sample
+  Trial 3: 1227.2 ms/sample
+
+Timing ipcfm_a (3 trials)...
+  Trial 1: 10846.3 ms/sample
+  Trial 2: 10661.2 ms/sample
+  Trial 3: 11305.6 ms/sample
+
+Timing ipcfm_b (3 trials)...
+  Trial 1: 18139.4 ms/sample
+  Trial 2: 16301.4 ms/sample
+  Trial 3: 15128.9 ms/sample
+
+Timing ipcfm_c (3 trials)...
+  Trial 1: 9983.7 ms/sample

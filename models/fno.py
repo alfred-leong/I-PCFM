@@ -35,10 +35,14 @@ class FNO(nn.Module):
         self.hidden_channels = hidden_channels
         self.proj_channels = proj_channels
         self.n_layers = n_layers
+        # neuralop >=2.0 renamed lifting_channels/proj_channels to ratios
+        lifting_ratio = max(1, proj_channels // hidden_channels)
         self.model = _FNO(
             n_modes=n_modes, hidden_channels=hidden_channels,
             in_channels=1 + len(n_modes) + emb_channels, out_channels=1,
-            lifting_channels=proj_channels, proj_channels=proj_channels, n_layers=n_layers,
+            lifting_channel_ratio=lifting_ratio,
+            projection_channel_ratio=lifting_ratio,
+            n_layers=n_layers,
         )
 
     def forward(self, t, u):

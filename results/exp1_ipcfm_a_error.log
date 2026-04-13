@@ -1,0 +1,15 @@
+Error in exp1_ipcfm_a:
+Non-finite solution from solve
+
+Traceback (most recent call last):
+  File "/home/alfred/I-PCFM/evaluate_ipcfm.py", line 501, in run_exp1_main
+    u_pred, tps = run_sampling(
+  File "/home/alfred/I-PCFM/evaluate_ipcfm.py", line 370, in run_sampling
+    v_proj = method_fn(ut=u, vf=vf, t=tau, u0=u0, dt=dt, hfunc=hfuncs,
+  File "/home/alfred/I-PCFM/pcfm/ipcfm_sampling.py", line 221, in ipcfm_a_batched
+    v_proj = ipcfm_a_sample(
+  File "/home/alfred/I-PCFM/pcfm/ipcfm_sampling.py", line 164, in ipcfm_a_sample
+    lam = _safe_solve(JJt, h_aug, eps, device)
+  File "/home/alfred/I-PCFM/pcfm/ipcfm_sampling.py", line 414, in _safe_solve
+    raise RuntimeError("Non-finite solution from solve")
+RuntimeError: Non-finite solution from solve

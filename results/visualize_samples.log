@@ -1,0 +1,72 @@
+Loaded model from /external1/alfred/pcfm_logs/burgers_ic/20000.pt (step ?)
+Loaded 64 test samples from datasets/data/burgers_test_nIC30_nBC30.h5, shape: torch.Size([64, 101, 101])
+Generating 64 samples with vanilla...
+Generating 64 samples with pcfm_equality...
+Generating 64 samples with ipcfm_a...
+Generating 64 samples with ipcfm_b...
+Generating 64 samples with ipcfm_c...
+Saved results/sample_heatmaps/sample_001.png
+Saved results/sample_heatmaps/sample_002.png
+Saved results/sample_heatmaps/sample_003.png
+Saved results/sample_heatmaps/sample_004.png
+Saved results/sample_heatmaps/sample_005.png
+Saved results/sample_heatmaps/sample_006.png
+Saved results/sample_heatmaps/sample_007.png
+Saved results/sample_heatmaps/sample_008.png
+Saved results/sample_heatmaps/sample_009.png
+Saved results/sample_heatmaps/sample_010.png
+Saved results/sample_heatmaps/sample_011.png
+Saved results/sample_heatmaps/sample_012.png
+Saved results/sample_heatmaps/sample_013.png
+Saved results/sample_heatmaps/sample_014.png
+Saved results/sample_heatmaps/sample_015.png
+Saved results/sample_heatmaps/sample_016.png
+Saved results/sample_heatmaps/sample_017.png
+Saved results/sample_heatmaps/sample_018.png
+Saved results/sample_heatmaps/sample_019.png
+Saved results/sample_heatmaps/sample_020.png
+Saved results/sample_heatmaps/sample_021.png
+Saved results/sample_heatmaps/sample_022.png
+Saved results/sample_heatmaps/sample_023.png
+Saved results/sample_heatmaps/sample_024.png
+Saved results/sample_heatmaps/sample_025.png
+Saved results/sample_heatmaps/sample_026.png
+Saved results/sample_heatmaps/sample_027.png
+Saved results/sample_heatmaps/sample_028.png
+Saved results/sample_heatmaps/sample_029.png
+Saved results/sample_heatmaps/sample_030.png
+Saved results/sample_heatmaps/sample_031.png
+Saved results/sample_heatmaps/sample_032.png
+Saved results/sample_heatmaps/sample_033.png
+Saved results/sample_heatmaps/sample_034.png
+Saved results/sample_heatmaps/sample_035.png
+Saved results/sample_heatmaps/sample_036.png
+Saved results/sample_heatmaps/sample_037.png
+Saved results/sample_heatmaps/sample_038.png
+Saved results/sample_heatmaps/sample_039.png
+Saved results/sample_heatmaps/sample_040.png
+Saved results/sample_heatmaps/sample_041.png
+Saved results/sample_heatmaps/sample_042.png
+Saved results/sample_heatmaps/sample_043.png
+Saved results/sample_heatmaps/sample_044.png
+Saved results/sample_heatmaps/sample_045.png
+Saved results/sample_heatmaps/sample_046.png
+Saved results/sample_heatmaps/sample_047.png
+Saved results/sample_heatmaps/sample_048.png
+Saved results/sample_heatmaps/sample_049.png
+Saved results/sample_heatmaps/sample_050.png
+Saved results/sample_heatmaps/sample_051.png
+Saved results/sample_heatmaps/sample_052.png
+Saved results/sample_heatmaps/sample_053.png
+Saved results/sample_heatmaps/sample_054.png
+Saved results/sample_heatmaps/sample_055.png
+Saved results/sample_heatmaps/sample_056.png
+Saved results/sample_heatmaps/sample_057.png
+Saved results/sample_heatmaps/sample_058.png
+Saved results/sample_heatmaps/sample_059.png
+Saved results/sample_heatmaps/sample_060.png
+Saved results/sample_heatmaps/sample_061.png
+Saved results/sample_heatmaps/sample_062.png
+Saved results/sample_heatmaps/sample_063.png
+Saved results/sample_heatmaps/sample_064.png
+Done. 64 sample PNGs saved to results/sample_heatmaps/
