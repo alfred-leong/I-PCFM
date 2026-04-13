@@ -30,7 +30,7 @@ def fast_project_batched(xi_batch: torch.Tensor, h_func: Callable[[torch.Tensor]
         delta = (xi - u).unsqueeze(-1)
         JJt = J @ J.transpose(-2, -1)
         rhs = J @ delta + h_val
-        lambda_ = torch.linalg.solve(JJt, rhs)
+        lambda_ = torch.linalg.lstsq(JJt, rhs).solution
         du = delta - J.transpose(-2, -1) @ lambda_
         return u + du.squeeze(-1)
 
@@ -60,7 +60,7 @@ def fast_project_batched_chunk(xi_batch, h_func, max_iter=1, chunk_size=16):
             delta = (xi - u).unsqueeze(-1)
             JJt = J @ J.transpose(-2, -1)
             rhs = J @ delta + h_val
-            lambda_ = torch.linalg.solve(JJt, rhs)
+            lambda_ = torch.linalg.lstsq(JJt, rhs).solution
             du = delta - J.transpose(-2, -1) @ lambda_
             return u + du.squeeze(-1)
 
@@ -152,9 +152,8 @@ def pcfm_sample(
             rhs = J @ delta + res.unsqueeze(-1)
             rhs = rhs.squeeze(-1)
 
-        lam = torch.linalg.solve(
-            JJt + eps * torch.eye(JJt.shape[0], device=u_flat.device), rhs
-        )
+        A = JJt + eps * torch.eye(JJt.shape[0], device=u_flat.device)
+        lam = torch.linalg.solve(A, rhs)
         u_corr = u_corr - J.T @ lam
 
     t_next = t + dt
@@ -188,32 +187,33 @@ def pcfm_sample(
 
 def pcfm_batched(ut, vf, t, u0, dt, hfunc, use_vmap=False, mode='root', newtonsteps=1, guided_interpolation=False, interpolation_params={}, eps=1e-6):
     """
-    Batched PCFM projection for 1D problems (nx, nt)
+    Batched PCFM projection for 1D problems (nx, nt).
+    hfunc: list of callables (one per sample) or a single callable.
     """
     B, nx, nt = ut.shape
     n = nx * nt
 
-    def wrapped_project(u_flat, v_flat, u0_flat):
-        return pcfm_sample(
-            u_flat, v_flat, t, u0_flat, dt,
-            hfunc=hfunc, mode=mode, newtonsteps=newtonsteps,
-            guided_interpolation=guided_interpolation,
-            interpolation_params=interpolation_params,
-            eps=eps
-        )
+    # Normalise hfunc to a list
+    if not isinstance(hfunc, (list, tuple)):
+        hfunc = [hfunc] * B
 
     u_flat = ut.view(B, n).detach().clone().requires_grad_(True)
     v_flat = vf.view(B, n)
     u0_flat = u0.view(B, n)
 
-    if use_vmap:
-        v_proj_flat = vmap(wrapped_project)(u_flat, v_flat, u0_flat)
-    else:
-        v_proj_list = []
-        for i in range(B):
-            v_proj = wrapped_project(u_flat[i], v_flat[i], u0_flat[i])
-            v_proj_list.append(v_proj)
-        v_proj_flat = torch.stack(v_proj_list, dim=0)
+    v_proj_list = []
+    for i in range(B):
+        v_proj = pcfm_sample(
+            u_flat[i], v_flat[i], t, u0_flat[i], dt,
+            hfunc=hfunc[i], mode=mode, newtonsteps=newtonsteps,
+            guided_interpolation=guided_interpolation,
+            interpolation_params=interpolation_params,
+            eps=eps
+        )
+        v_proj_list.append(v_proj.detach())
+        if i % 8 == 7 and u_flat.device.type == 'cuda':
+            torch.cuda.empty_cache()
+    v_proj_flat = torch.stack(v_proj_list, dim=0)
 
     return v_proj_flat.view(B, nx, nt)
 
