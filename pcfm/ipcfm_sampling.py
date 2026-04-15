@@ -163,6 +163,12 @@ def ipcfm_a_sample(
     if torch.isfinite(JJt).all() and torch.isfinite(h_aug).all():
         lam = _safe_solve(JJt, h_aug, eps, device)
         correction = J_aug.T @ lam
+        # Trust-region: cap correction magnitude vs. u-only norm (slack norm
+        # excluded, since s can dominate before projection)
+        u_p_ref_norm = z[:n].norm().clamp(min=1.0)
+        corr_u_norm = correction[:n].norm()
+        if corr_u_norm > 10.0 * u_p_ref_norm:
+            correction = correction * (10.0 * u_p_ref_norm / corr_u_norm)
         z = z - correction
 
     # Project slack back to R+
@@ -402,14 +408,25 @@ def ipcfm_b_batched(
 # ---------------------------------------------------------------------------
 
 def _safe_solve(JJt: Tensor, rhs: Tensor, reg: float, device) -> Tensor:
-    """Solve (JJt + reg*I) x = rhs using solve. Returns zeros if non-finite."""
+    """Solve (JJt + reg*I) x = rhs. On non-finite output, fall back to lstsq;
+    return zeros only if lstsq is also non-finite."""
     # Guard: NaN/Inf in inputs means the Jacobian blew up — skip correction
     if torch.isnan(JJt).any() or torch.isinf(JJt).any() or \
        torch.isnan(rhs).any() or torch.isinf(rhs).any():
         return torch.zeros_like(rhs)
     k = JJt.shape[0]
     A = JJt + reg * torch.eye(k, device=device)
-    sol = torch.linalg.solve(A, rhs)
+    try:
+        sol = torch.linalg.solve(A, rhs)
+    except RuntimeError:
+        sol = torch.full_like(rhs, float('nan'))
+    if torch.isfinite(sol).all():
+        return sol
+    # Rank-deficient / singular: fall back to least-squares on the regularised system
+    try:
+        sol = torch.linalg.lstsq(A, rhs.unsqueeze(-1)).solution.squeeze(-1)
+    except RuntimeError:
+        return torch.zeros_like(rhs)
     if not torch.isfinite(sol).all():
         return torch.zeros_like(rhs)
     return sol
@@ -456,7 +473,13 @@ def _combined_newton_project(
         if not (torch.isfinite(JJt).all() and torch.isfinite(res_eq).all()):
             return u_flat.clone()
         lam = _safe_solve(JJt, res_eq, reg, device)
-        u = u - J_eq.T @ lam
+        correction = J_eq.T @ lam
+        # Trust-region: cap correction magnitude
+        u_ref_norm = u.norm().clamp(min=1.0)
+        corr_norm = correction.norm()
+        if corr_norm > 10.0 * u_ref_norm:
+            correction = correction * (10.0 * u_ref_norm / corr_norm)
+        u = u - correction
         return u
 
     # Combined residual: [h(u); g_A(u)]
@@ -471,7 +494,13 @@ def _combined_newton_project(
     if not (torch.isfinite(JJt).all() and torch.isfinite(res_combined).all()):
         return u_flat.clone()
     lam = _safe_solve(JJt, res_combined, reg, device)
-    u = u - J_combined.T @ lam
+    correction = J_combined.T @ lam
+    # Trust-region: cap correction magnitude
+    u_ref_norm = u.norm().clamp(min=1.0)
+    corr_norm = correction.norm()
+    if corr_norm > 10.0 * u_ref_norm:
+        correction = correction * (10.0 * u_ref_norm / corr_norm)
+    u = u - correction
 
     return u
 

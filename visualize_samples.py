@@ -1,6 +1,6 @@
 """Generate and visualize samples per method for visual comparison.
 Uses pre-screened good sample indices (no singular matrices for any method)."""
-import sys, os, torch, numpy as np, h5py
+import argparse, sys, os, json, torch, numpy as np, h5py
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ from scripts.training.utils import load_config
 from pcfm.pcfm_sampling import make_grid
 
 # Pre-screened good indices (0-based) — passed ipcfm_c, ipcfm_b, AND pcfm_equality
-GOOD_INDICES = [
+DEFAULT_GOOD_INDICES = [
     0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 13, 15,
     19, 20, 21, 22, 24, 26, 27, 29, 30, 31, 32, 33, 34,
     36, 37, 38, 40, 42, 43, 44, 45, 46, 47, 48, 49,
@@ -23,10 +23,7 @@ GOOD_INDICES = [
 
 N_STEPS = 100
 METHODS = ['vanilla', 'pcfm_equality', 'ipcfm_a', 'ipcfm_b', 'ipcfm_c']
-DATA_PATH = 'datasets/data/burgers_test_nIC30_nBC30.h5'
-CKPT_PATH = '/external1/alfred/pcfm_logs/burgers_ic/20000.pt'
 CONFIG_PATH = 'configs/burgers1d.yml'
-OUT_DIR = 'results/sample_heatmaps_v3'
 
 
 def run_single_sample(method_name, model, u_true_1, hfunc, ineq, device, seed):
@@ -84,30 +81,49 @@ def run_single_sample(method_name, model, u_true_1, hfunc, ineq, device, seed):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ckpt', default='models/20000.pt')
+    parser.add_argument('--data', default='datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5')
+    parser.add_argument('--out_dir', default='results/sample_heatmaps_v4')
+    parser.add_argument('--n_samples', type=int, default=20,
+                        help='Number of pre-screened samples to visualize (taken from the front)')
+    parser.add_argument('--good_indices_file', default=None,
+                        help='JSON file with good_indices list; defaults to in-script list')
+    args = parser.parse_args()
+
+    if args.good_indices_file and os.path.exists(args.good_indices_file):
+        with open(args.good_indices_file) as f:
+            good_indices = json.load(f)['good_indices']
+    else:
+        good_indices = DEFAULT_GOOD_INDICES
+    good_indices = list(good_indices)[:args.n_samples]
+    print(f'Visualizing {len(good_indices)} samples → {args.out_dir}')
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     cfg = load_config(CONFIG_PATH)
-    model = load_model(CKPT_PATH, cfg, device)
+    model = load_model(args.ckpt, cfg, device)
 
     # Load enough data to cover max index
-    n_load = max(GOOD_INDICES) + 1
-    u_true_all = load_test_data(DATA_PATH, n_load, device)
+    n_load = max(good_indices) + 1
+    u_true_all = load_test_data(args.data, n_load, device)
     nx, nt = u_true_all.shape[1], u_true_all.shape[2]
     ineq = build_entropy_ineq(device, nx, nt)
 
-    os.makedirs(OUT_DIR, exist_ok=True)
+    out_dir = args.out_dir
+    os.makedirs(out_dir, exist_ok=True)
 
     # Build hfuncs: k=5 for vanilla/pcfm_equality, k=20 for ipcfm methods
     EQUALITY_METHODS = {'vanilla', 'pcfm_equality', 'soft_penalty'}
-    print(f'Building hfuncs for {len(GOOD_INDICES)} pre-screened samples...')
-    hfuncs_k5 = {j: build_hfunc(u_true_all[j], device, nx, nt, k=5) for j in GOOD_INDICES}
-    hfuncs_k20 = {j: build_hfunc(u_true_all[j], device, nx, nt, k=20) for j in GOOD_INDICES}
+    print(f'Building hfuncs for {len(good_indices)} pre-screened samples...')
+    hfuncs_k5 = {j: build_hfunc(u_true_all[j], device, nx, nt, k=5) for j in good_indices}
+    hfuncs_k20 = {j: build_hfunc(u_true_all[j], device, nx, nt, k=20) for j in good_indices}
 
     # Run all methods on good samples
     method_preds = {m: {} for m in METHODS}
     for method in METHODS:
         hfuncs = hfuncs_k5 if method in EQUALITY_METHODS else hfuncs_k20
-        print(f'\n=== Running {method} on {len(GOOD_INDICES)} samples ===')
-        for j in GOOD_INDICES:
+        print(f'\n=== Running {method} on {len(good_indices)} samples ===')
+        for j in good_indices:
             seed = 1000 + j
             try:
                 pred = run_single_sample(method, model, u_true_all[j], hfuncs[j],
@@ -123,11 +139,11 @@ def main():
             torch.cuda.empty_cache()
 
     # Save heatmap PNGs
-    print(f'\n=== Saving {len(GOOD_INDICES)} heatmap PNGs ===')
+    print(f'\n=== Saving {len(good_indices)} heatmap PNGs ===')
     x_extent = [0, 1, 0, 1]
     n_cols = len(METHODS) + 1
 
-    for rank, j in enumerate(GOOD_INDICES):
+    for rank, j in enumerate(good_indices):
         fig, axes = plt.subplots(1, n_cols, figsize=(3.5 * n_cols, 3.2))
 
         # Ground truth
@@ -155,12 +171,12 @@ def main():
 
         plt.suptitle(f'Sample #{j+1} (pre-screened, 101x101 Burgers)', fontsize=11)
         plt.tight_layout()
-        out_path = os.path.join(OUT_DIR, f'sample_{rank+1:03d}.png')
+        out_path = os.path.join(out_dir, f'sample_{rank+1:03d}.png')
         plt.savefig(out_path, dpi=120, bbox_inches='tight')
         plt.close(fig)
         print(f'Saved {out_path}')
 
-    print(f'\nDone. {len(GOOD_INDICES)} sample PNGs saved to {OUT_DIR}/')
+    print(f'\nDone. {len(good_indices)} sample PNGs saved to {out_dir}/')
 
 
 if __name__ == '__main__':

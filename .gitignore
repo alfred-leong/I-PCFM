@@ -1,5 +1,9 @@
 # Data files
+datasets/I-PCFM_data/
 datasets/data/
+
+# Models 
+models/*.pt
 
 # Claude Code
 .claude/

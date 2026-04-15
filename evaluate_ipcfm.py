@@ -107,8 +107,9 @@ def parse_args():
     parser.add_argument('--exp1_main', action='store_true',
         help='Run Exp 1: main comparison table')
     parser.add_argument('--exp2_sweep', type=str, default=None,
-        choices=['mu0', 'eps'],
-        help='Run Exp 2: sweep mu0 (Strategy B) or eps (Strategy C)')
+        choices=['mu0', 'eps', 'slack_threshold', 'solve_eps'],
+        help='Run Exp 2: sweep mu0 (Strategy B), eps (Strategy C), '
+             'slack_threshold (Strategy A), or solve_eps (A and C)')
     parser.add_argument('--exp3_timing', action='store_true',
         help='Run Exp 3: runtime breakdown')
     parser.add_argument('--exp4_active_set', action='store_true',
@@ -120,7 +121,11 @@ def parse_args():
     parser.add_argument('--decay_rate', type=float, default=3.0,
         help='Strategy B: barrier decay rate')
     parser.add_argument('--eps', type=float, default=1e-3,
-        help='Strategy A slack threshold / Strategy C active set tolerance')
+        help='Strategy C active set tolerance (constraints with g_k > -eps are active)')
+    parser.add_argument('--slack_threshold', type=float, default=0.05,
+        help='Strategy A near-active band: constraints with g_k > -slack_threshold get slacks')
+    parser.add_argument('--solve_eps', type=float, default=1e-4,
+        help='Tikhonov regularizer for the Newton solve in Strategies A and C')
     parser.add_argument('--lam_soft', type=float, default=10.0,
         help='Soft penalty baseline: penalty weight')
     parser.add_argument('--newtonsteps', type=int, default=1,
@@ -335,8 +340,11 @@ def run_sampling(
     B, nx, nt = u_true.shape
     method_fn = METHOD_FN_MAP[method_name]
 
-    # Sample initial noise from GP prior
+    # Sample initial noise from GP prior — fixed seed so metrics are reproducible
+    # and consistent across experiments (exp1/exp2/exp4 all draw the same 51 noise
+    # realizations for a given method).
     grid = make_grid((nx, nt), device=device)
+    torch.manual_seed(42)
     with torch.no_grad():
         u0 = model.gp.sample(grid, (nx, nt), n_samples=B)
     u0 = u0.to(device)
@@ -568,7 +576,7 @@ def run_exp2_sweep(args, model, u_true, device):
     results = {}
 
     if args.method == 'ipcfm_b' and args.exp2_sweep == 'mu0':
-        mu0_values = [1e-3, 1e-2, 0.1, 1.0, 10.0]
+        mu0_values = [1e-4, 1e-3, 1e-2, 0.1]
         print(f'Sweeping mu_0 for ipcfm_b: {mu0_values}')
         for mu_0 in mu0_values:
             key = f'mu0={mu_0}'
@@ -596,7 +604,8 @@ def run_exp2_sweep(args, model, u_true, device):
             key = f'eps={eps_val}'
             print(f'\n  eps={eps_val}')
             try:
-                kwargs = {'eps': eps_val, 'newtonsteps': args.newtonsteps}
+                kwargs = {'eps': eps_val, 'solve_eps': args.solve_eps,
+                          'newtonsteps': args.newtonsteps}
                 u_pred, tps = run_sampling(
                     model, u_true, 'ipcfm_c', args.n_steps, hfuncs, kwargs, device,
                     ineq=ineq,
@@ -613,7 +622,9 @@ def run_exp2_sweep(args, model, u_true, device):
     elif args.method == 'ipcfm_a':
         print('Running ipcfm_a with default settings (no hyperparameter sweep)')
         try:
-            kwargs = {'newtonsteps': args.newtonsteps, 'slack_threshold': 0.05}
+            kwargs = {'newtonsteps': args.newtonsteps,
+                      'slack_threshold': args.slack_threshold,
+                      'eps': args.solve_eps}
             u_pred, tps = run_sampling(
                 model, u_true, 'ipcfm_a', args.n_steps, hfuncs, kwargs, device,
                 ineq=ineq,
@@ -692,7 +703,7 @@ def run_exp3_timing(args, model, u_true, device):
     skip = [m.strip() for m in args.skip_methods.split(',') if m.strip()]
     methods = [m for m in methods if m not in skip]
     B = u_true.shape[0]
-    hfuncs = [build_hfunc(u_true[j], device, nx=101, nt=101) for j in range(B)]
+    hfuncs = [build_hfunc(u_true[j], device, nx=101, nt=101, k=5) for j in range(B)]
     ineq = build_entropy_ineq(device, nx=101, nt=101)
     n_trials = 3
     results = {}
@@ -753,7 +764,7 @@ def run_exp4_active_set(args, model, u_true, device):
     print('='*60)
 
     B = u_true.shape[0]
-    hfuncs = [build_hfunc(u_true[j], device, nx=101, nt=101) for j in range(B)]
+    hfuncs = [build_hfunc(u_true[j], device, nx=101, nt=101, k=5) for j in range(B)]
     ineq = build_entropy_ineq(device, nx=101, nt=101)
     active_log_path = os.path.join(args.results_dir, f'active_set_log{args.result_suffix}.json')
 
@@ -762,7 +773,8 @@ def run_exp4_active_set(args, model, u_true, device):
         os.remove(active_log_path)
 
     active_set_log = []
-    method_kwargs = {'eps': args.eps, 'newtonsteps': args.newtonsteps}
+    method_kwargs = {'eps': args.eps, 'solve_eps': args.solve_eps,
+                     'newtonsteps': args.newtonsteps}
 
     try:
         u_pred, tps = run_sampling(
@@ -851,12 +863,12 @@ def _build_method_kwargs(args, method_name: str) -> dict:
     """Build the keyword arguments dict for each method from CLI args."""
     base = {'newtonsteps': args.newtonsteps}
     if method_name == 'ipcfm_a':
-        return {**base, 'slack_threshold': args.eps}
+        return {**base, 'slack_threshold': args.slack_threshold, 'eps': args.solve_eps}
     elif method_name == 'ipcfm_b':
         return {**base, 'mu_0': args.mu_0, 'decay_rate': args.decay_rate,
                 'guided_interpolation': True}
     elif method_name == 'ipcfm_c':
-        return {**base, 'eps': args.eps}
+        return {**base, 'eps': args.eps, 'solve_eps': args.solve_eps}
     elif method_name == 'soft_penalty':
         return {**base, 'lam_soft': args.lam_soft}
     elif method_name in ('vanilla', 'pcfm_equality'):
