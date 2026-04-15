@@ -24,7 +24,7 @@ All three re-use the PCFM Newton-projection machinery and add a numerical safety
 
 **Experiment 1 — comparison of all methods** on 30 random test samples (seed 42) with `n_steps=100`:
 
-| Method | CE(IC) ↓ | CE(CL) ↓ | CE-Ineq ↓ | Feasibility ↑ | MMSE ↓ | SMSE ↓ | s/sample |
+| Method | CE(IC) ↓ | CE(CL) ↓ | CE-Ineq ↓ | Feasibility ↑ | MMSE ↓ | SMSE ↓ | Time (s/sample) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Vanilla FFM | 3.334 | 0.052 | 0.190 | 0.000 | 0.0168 | 0.0048 | 0.14 |
 | PCFM (equality only) | 1.1e-6 | 2.1e-3 | **2.625** | 0.000 | 0.0243 | 0.0102 | 1.89 |
@@ -247,13 +247,6 @@ Recommended safe ranges (from Exp 2): $\mu_0 \in [10^{-4}, 10^{-3}]$ for B; $\ep
 
 ---
 
-## Citation
+## Acknowledgements
 
-```bibtex
-@article{PCFM2025,
-  title={Physics-Constrained Flow Matching: Sampling Generative Models with Hard Constraints},
-  author={Utkarsh, Utkarsh and Cai, Pengfei and Edelman, Alan and Gomez-Bombarelli, Rafael and Rackauckas, Christopher Vincent},
-  journal={arXiv preprint arXiv:2506.04171},
-  year={2025}
-}
-```
+Claude (Anthropic) was used as a coding assistant throughout this project to help implement and debug the I-PCFM sampling strategies, the evaluation/visualization scripts, and to draft portions of this README.
