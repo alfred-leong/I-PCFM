@@ -59,7 +59,7 @@ Per-sample flow-trajectory snapshots at $\tau \in \{0, 0.2, 0.4, 0.6, 0.8, 1.0\}
 Browse or download the repository archive from the anonymised mirror:
 
 ```
-https://anonymous.4open.science/r/I-PCFM/
+https://anonymous.4open.science/r/ipcfm-icml-workshop/
 ```
 
 Unpack it locally, `cd` into the extracted directory, then:
