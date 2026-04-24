@@ -1,49 +1,52 @@
 # I-PCFM: Inequality-Constrained Physics Flow Matching
 
-> Course project for **NUS CS6282, Spring 2026**.
-
-This repository contains the code for **I-PCFM: Inequality-Constrained Physics Flow Matching**, which extends Physics-Constrained Flow Matching (PCFM) to jointly enforce **equality and inequality constraints** during sampling, and evaluates three strategies on the 1D inviscid Burgers equation with the Oleinik entropy condition.
+This repository contains the code for **I-PCFM: Inequality-Constrained Physics Flow Matching**, which extends Physics-Constrained Flow Matching (PCFM) to **jointly enforce equality and inequality constraints** during sampling, and evaluates three strategies on two 1-D PDEs: the **inviscid Burgers' equation** (with the Oleinik entropy condition) and the **Reaction-Diffusion (Fisher-KPP) equation** (with the invariant interval $u \in [0, 1]$).
 
 ---
 
 ## Overview
 
-PCFM enforces only equality constraints $h(u) = 0$. This project adds three strategies for also enforcing inequality constraints $g(u) \le 0$ — the entropy condition for Burgers' equation in our experiments — during flow-matching sampling:
+PCFM enforces only equality constraints $h(u) = 0$. This project adds three strategies for also enforcing inequality constraints $g(u) \le 0$ during flow-matching sampling:
 
-| Strategy | Method | File |
-|---|---|---|
-| **A** | Slack-variable reformulation | `pcfm/ipcfm_sampling.py:ipcfm_a_sample` |
-| **B** | Log-barrier augmentation | `pcfm/ipcfm_sampling.py:ipcfm_b_sample` |
-| **C** | Active-set projection | `pcfm/ipcfm_sampling.py:ipcfm_c_sample` |
+| Strategy | Method | Where it acts | File |
+|---|---|---|---|
+| **A** | Slack-variable reformulation | Gauss–Newton projection step | `pcfm/ipcfm_sampling.py:ipcfm_a_sample` |
+| **B** | Log-barrier augmentation | Relaxed constraint correction step | `pcfm/ipcfm_sampling.py:ipcfm_b_sample` |
+| **C** | Active-set projection | Gauss–Newton projection step | `pcfm/ipcfm_sampling.py:ipcfm_c_sample` |
 
-All three re-use the PCFM Newton-projection machinery and add a numerical safety net (Tikhonov regularization + `lstsq` fallback + trust-region cap) so the projection degrades gracefully on rank-deficient systems.
+All three reuse the PCFM Newton-projection machinery and add a numerical safety net (Tikhonov regularisation + `lstsq` fallback + trust-region cap) so the projection degrades gracefully on rank-deficient systems.
+
+**Tasks.** Both PDEs are discretised on a 2-D space–time grid:
+- **Burgers' equation** $\partial_t u + \partial_x(u^2/2) = 0$ on $(x,t) \in [0,1]^2$ with a $101 \times 101$ grid.
+- **Reaction-Diffusion (Fisher-KPP)** $\partial_t u = \nu\,\partial_{xx} u + \rho\,u(1-u)$ on $(x,t) \in [0,1]^2$ with a $128 \times 100$ grid.
 
 ---
 
 ## Main Results
 
-**Experiment 1 — comparison of all methods** on 30 random test samples (seed 42) with `n_steps=100`:
+**Comparison of all methods** on $N=100$ random test samples (seed 42) with `n_steps=100`, using symmetric $k=20$ Godunov unrolling on Burgers' for every method:
 
-| Method | CE(IC) ↓ | CE(CL) ↓ | CE-Ineq ↓ | Feasibility ↑ | MMSE ↓ | SMSE ↓ | Time (s/sample) |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Vanilla FFM | 3.334 | 0.052 | 0.190 | 0.000 | 0.0168 | 0.0048 | 0.14 |
-| PCFM (equality only) | 1.1e-6 | 2.1e-3 | **2.625** | 0.000 | 0.0243 | 0.0102 | 1.89 |
-| **I-PCFM-A** (slack) | 1.0e-4 | **6.7e-4** | 0.139 | 0.000 | 0.0086 | **0.0028** | 34.3 |
-| **I-PCFM-B** (barrier) | 2.2e-3 | 2.1e-3 | 0.287 | 0.067 | 0.0095 | **0.0026** | 32.0 |
-| **I-PCFM-C** (active-set) | 1.1e-3 | 2.5e-3 | 0.239 | **0.333** | **0.0080** | 0.0032 | **16.3** |
+| Method | Burgers' CE-Ineq ↓ | Burgers' Feas. ↑ | RD CE-Ineq ↓ | RD Feas. ↑ |
+|---|---:|---:|---:|---:|
+| Vanilla FFM        | 0.149 | 0.00 | 0.082  | 0.00 |
+| PCFM (equality only) | 0.750 | 0.00 | 1.628  | 0.30 |
+| I-PCFM-A (slack)    | 0.209 | 0.00 | 0.008  | 0.40 |
+| I-PCFM-B (barrier)  | 0.574 | 0.04 | 1.875  | 0.27 |
+| **I-PCFM-C (active-set)** | 0.418 | **0.53** | **0.0005** | **0.97** |
 
-**Key takeaways:**
-- PCFM actively *hurts* inequality satisfaction: enforcing $h=0$ pushes solutions into the entropy-violating region (CE-Ineq rises 14× over vanilla).
-- All three I-PCFM variants restore inequality quality while preserving equality (CE(IC) kept at $10^{-3}$–$10^{-4}$) and roughly halving reconstruction error.
-- I-PCFM-C achieves the best Pareto point: highest strict feasibility (33%), lowest MMSE, and runs 2× faster than A and B.
+Here *Feas.* is the **joint-feasibility rate** — the fraction of samples with both equality residual and maximum inequality violation below $10^{-3}$. Full numbers (CE-IC, CE-CL, MMSE, SMSE, wall-clock) live in [`results/exp1_main_table_n100_joint.json`](results/exp1_main_table_n100_joint.json) and [`results/exp1_rd_linear_main_table_n100_joint.json`](results/exp1_rd_linear_main_table_n100_joint.json).
 
-### Sample trajectory visualization
+**Key takeaways.**
+- **PCFM alone actively *hurts* inequality satisfaction**: Enforcing equality constraints only pushes solutions out of the inequality-feasible region (CE-Ineq rises ~5× on Burgers' and 20× on RD compared to Vanilla).
+- **I-PCFM-C achieves the best feasibility on both tasks**: Active-set projection achieves highest joint feasibility while being the fastest I-PCFM variant
 
-![Flow trajectory for test sample 383](results/sample_heatmaps/trajectory_010.png)
+### Visual comparison
 
-Each row is a method, each column a flow-time snapshot ($\tau \in \{0, 0.2, 0.4, 0.6, 0.8, 1.0\}$). All three I-PCFM variants preserve the right-propagating shock while Vanilla retains GP-prior noise texture.
+![One-sample comparison across methods for both tasks](results/method_comparison.png)
 
-The pre-generated results used in this README are stored in [`results/`](results/). The instructions below reproduce them end-to-end.
+*One Burgers' (top) and one Reaction-Diffusion (bottom) test sample, one column per method. On Burgers', all methods reproduce the diagonal shock and the differences between methods are small for this particular sample. On Reaction-Diffusion, Vanilla FFM shows noisy structure and PCFM / I-PCFM-B produce bright red patches where values exceed 1; I-PCFM-C removes these patches and best recovers the band pattern of the Ground Truth.*
+
+Per-sample flow-trajectory snapshots at $\tau \in \{0, 0.2, 0.4, 0.6, 0.8, 1.0\}$ are in [`results/sample_heatmaps_k20/`](results/sample_heatmaps_k20) (Burgers', symmetric $k=20$) and [`results/sample_heatmaps_rd/`](results/sample_heatmaps_rd) (Reaction-Diffusion). Active-set dynamics (size of $|\mathcal{A}|$ over flow time) are in [`results/exp4_active_set_n100_joint.png`](results/exp4_active_set_n100_joint.png).
 
 ---
 
@@ -71,20 +74,19 @@ python -c "import torch, h5py, neuralop, gpytorch; print('torch', torch.__versio
 
 You should see `torch 2.4.1 cuda True` on a CUDA-capable host.
 
-### 2. Download the dataset and pretrained checkpoint
+### 2. Download the Burgers' dataset and pretrained checkpoint
 
-The Burgers test/train data and the pretrained FFM checkpoint are hosted on Hugging Face:
+Both are hosted on Hugging Face:
 
 - Dataset: [`alfred-leong/I-PCFM-burgers`](https://huggingface.co/datasets/alfred-leong/I-PCFM-burgers) — 4 `.h5` files, ~1.1 GB
-- Model: [`alfred-leong/I-PCFM-ffm-burgers`](https://huggingface.co/alfred-leong/I-PCFM-ffm-burgers) — `20000.pt`, 205 MB
-
-Download with `huggingface_hub`:
+- Model: [`alfred-leong/I-PCFM-ffm-burgers`](https://huggingface.co/alfred-leong/I-PCFM-ffm-burgers) — `20000.pt`, ~205 MB
 
 ```bash
-# dataset → datasets/I-PCFM_data/
+# dataset → datasets/I-PCFM_data/ (evaluation code looks in datasets/data/ via symlink)
 mkdir -p datasets/I-PCFM_data
 huggingface-cli download alfred-leong/I-PCFM-burgers \
     --repo-type dataset --local-dir datasets/I-PCFM_data
+ln -sfn I-PCFM_data datasets/data   # code default paths assume datasets/data/
 
 # pretrained FFM checkpoint → models/
 mkdir -p models
@@ -92,27 +94,38 @@ huggingface-cli download alfred-leong/I-PCFM-ffm-burgers 20000.pt \
     --local-dir models
 ```
 
-Verify:
+### 3. Generate the Reaction-Diffusion dataset and train the FFM
+
+The RD dataset is generated locally from `datasets/generate_RD1d_data.py` (parallel numerical solve):
 
 ```bash
-ls -la datasets/I-PCFM_data/   # should show burgers_{test,train,sampling_diff*}.h5
-ls -la models/20000.pt         # should be ~205 MB
+# Produces RD_neumann_train_nIC80_nBC80.h5 (~310 MB)
+# and    RD_neumann_test_nIC30_nBC30.h5   (~45 MB) under datasets/data/
+python generate_rd_train_test.py
 ```
 
-### 3. Sanity check
+Then train a fresh FFM model (20 k iterations, ~3.5 h on one L40):
+
+```bash
+PYTHONPATH=. CUDA_VISIBLE_DEVICES=0 python scripts/training/main.py \
+    configs/rd1d.yml --savename rd_ic
+# Writes checkpoints every 2000 steps to logs/rd_ic/*.pt
+```
+
+### 4. Sanity check
 
 ```bash
 python -c "
 import torch
 from models import get_flow_model
 from scripts.training.utils import load_config
-cfg = load_config('configs/burgers1d.yml')
-model = get_flow_model(cfg.model, cfg.encoder).cuda().eval()
-ckpt = torch.load('models/20000.pt', map_location='cuda', weights_only=False)
-model.load_state_dict({k:v for k,v in ckpt['model'].items() if k != '_metadata'}, strict=False)
-u = torch.randn(2, 101, 101, device='cuda')
-v = model(torch.tensor(0.5, device='cuda'), u)
-print('forward OK, out shape:', v.shape)
+for cfg_path, ckpt in [('configs/burgers1d.yml', 'models/20000.pt'),
+                       ('configs/rd1d.yml',       'logs/rd_ic/20000.pt')]:
+    cfg = load_config(cfg_path)
+    m = get_flow_model(cfg.model, cfg.encoder).cuda().eval()
+    ck = torch.load(ckpt, map_location='cuda', weights_only=False)
+    m.load_state_dict({k:v for k,v in ck['model'].items() if k != '_metadata'}, strict=False)
+    print(f'{cfg_path:24} OK -> params={sum(p.numel() for p in m.parameters()):,}')
 "
 ```
 
@@ -120,92 +133,94 @@ print('forward OK, out shape:', v.shape)
 
 ## Reproducing the Experiments
 
-All evaluation is driven by `evaluate_ipcfm.py`. Pre-generated outputs live in [`results/`](results/); the commands below reproduce each of them end-to-end on seed-42 random sample selection.
+Evaluation is split by task:
+- **Burgers'** → `evaluate_ipcfm.py` (entropy inequality)
+- **Reaction-Diffusion** → `evaluate_ipcfm_rd.py` (invariant-interval inequality, `--ineq linear`)
 
-### Generate the sample-index file (once)
-
-```bash
-python -c "
-import numpy as np, json
-rng = np.random.default_rng(42)
-indices = sorted(rng.choice(900, size=30, replace=False).tolist())
-json.dump({'good_indices': indices, 'seed': 42, 'n': 30},
-          open('results/random_indices.json', 'w'), indent=2)
-"
-```
+Pre-generated outputs live in [`results/`](results/); the commands below reproduce each one end-to-end.
 
 ### Exp 1 — main comparison table
 
+Burgers' (5 methods, N=100, k=20 symmetric):
+
 ```bash
 CUDA_VISIBLE_DEVICES=0 python evaluate_ipcfm.py \
-    --method all --exp1_main --skip_methods soft_penalty \
-    --no_wandb \
-    --good_indices_file results/random_indices.json \
-    --data datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5 \
+    --method all --exp1_main --no_wandb \
     --ckpt models/20000.pt \
-    --solve_eps 1e-4 --slack_threshold 0.05
+    --data datasets/data/burgers_test_nIC30_nBC30.h5 \
+    --n_samples 100 --n_steps 100 \
+    --result_suffix _n100_joint
+# -> results/exp1_main_table_n100_joint.json
 ```
 
-Output: `results/exp1_main_table.json` (≈45 min on a single L40).
-
-### Exp 2 — constraint-quality trade-off
+Reaction-Diffusion (5 methods, N=100):
 
 ```bash
-# Sweep μ_0 for I-PCFM-B
-python evaluate_ipcfm.py --method ipcfm_b --exp2_sweep mu0 \
-    --no_wandb --good_indices_file results/random_indices.json \
-    --data datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5 \
-    --ckpt models/20000.pt --solve_eps 1e-4 --slack_threshold 0.05
-
-# Sweep ε for I-PCFM-C
-python evaluate_ipcfm.py --method ipcfm_c --exp2_sweep eps \
-    --no_wandb --good_indices_file results/random_indices.json \
-    --data datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5 \
-    --ckpt models/20000.pt --solve_eps 1e-4 --slack_threshold 0.05
+CUDA_VISIBLE_DEVICES=1 python evaluate_ipcfm_rd.py \
+    --method all --exp1_main --no_wandb \
+    --ckpt logs/rd_ic/20000.pt \
+    --n_samples 100 --n_steps 100 \
+    --ineq linear --result_suffix _joint
+# -> results/exp1_rd_linear_main_table_n100_joint.json
 ```
 
-Output: `results/exp2_tradeoff.json` (≈2 h on a single L40).
-
-### Exp 4 — active-set size vs flow time (I-PCFM-C)
+### Exp 2 — hyperparameter sensitivity (Burgers')
 
 ```bash
-python evaluate_ipcfm.py --method ipcfm_c --exp4_active_set \
-    --no_wandb --good_indices_file results/random_indices.json \
-    --data datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5 \
-    --ckpt models/20000.pt --solve_eps 1e-4
-```
-
-Outputs: `results/exp4_active_set.json` and `results/exp4_active_set.png` (≈10 min).
-
-### Visualizations
-
-```bash
-# Per-method final-sample comparison (one PNG per sample, 6 heatmaps each)
-python visualize_samples.py \
+# Sweep μ_0 for I-PCFM-B over {1e-4, 1e-3, 1e-2, 1e-1}
+CUDA_VISIBLE_DEVICES=2 python evaluate_ipcfm.py \
+    --method ipcfm_b --exp2_sweep mu0 --no_wandb \
     --ckpt models/20000.pt \
-    --data datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5 \
-    --good_indices_file results/random_indices.json \
-    --out_dir results/sample_heatmaps --n_samples 10
+    --data datasets/data/burgers_test_nIC30_nBC30.h5 \
+    --n_samples 100 --n_steps 100 --result_suffix _n100_joint
 
-# Full flow trajectory (6-method rows × 6-tau columns per sample)
+# Sweep ε for I-PCFM-C over {1e-4, 1e-3, 1e-2, 1e-1}
+CUDA_VISIBLE_DEVICES=3 python evaluate_ipcfm.py \
+    --method ipcfm_c --exp2_sweep eps --no_wandb \
+    --ckpt models/20000.pt \
+    --data datasets/data/burgers_test_nIC30_nBC30.h5 \
+    --n_samples 100 --n_steps 100 --result_suffix _n100_joint
+# -> results/exp2_tradeoff_n100_joint.json (merged by both runs)
+```
+
+### Exp 4 — active-set size vs flow time (Burgers', I-PCFM-C)
+
+```bash
+python evaluate_ipcfm.py \
+    --method ipcfm_c --exp4_active_set --no_wandb \
+    --ckpt models/20000.pt \
+    --data datasets/data/burgers_test_nIC30_nBC30.h5 \
+    --n_samples 100 --n_steps 100 --result_suffix _n100_joint
+# -> results/exp4_active_set_n100_joint.{json,png}, active_set_log_n100_joint.json
+```
+
+### Visualisations
+
+```bash
+# Per-task flow-trajectory grids (1 PNG per sample, 6 methods x 6 tau snapshots)
 python visualize_trajectory.py \
     --ckpt models/20000.pt \
-    --data datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5 \
-    --good_indices_file results/random_indices.json \
-    --out_dir results/sample_heatmaps --n_samples 10
+    --data datasets/data/burgers_test_nIC30_nBC30.h5 \
+    --out_dir results/sample_heatmaps_k20 --n_samples 10
+python visualize_trajectory_rd.py \
+    --out_dir results/sample_heatmaps_rd --n_samples 10
+
+# Single 2x6 methods-vs-ground-truth PNG (one hand-picked sample per task)
+python make_method_comparison.py                 # uses results/method_comparison_cache.npz if present
+python make_method_comparison.py --recompute     # force re-run of all 10 method/task combinations
+# -> results/method_comparison.png + method_comparison_cache.npz
 ```
 
-### Running experiments in parallel (recommended)
+### Running experiments in parallel
 
-Exp 1, Exp 2, Exp 4 are independent. Launch each in its own screen session on a separate GPU:
+Exp 1 (Burgers'), Exp 1 (RD), Exp 2, and Exp 4 are independent — launch each on its own GPU via `nohup` or `screen`:
 
 ```bash
-screen -dmS exp1 bash -c "CUDA_VISIBLE_DEVICES=0 python evaluate_ipcfm.py --method all --exp1_main ... > results/exp1_main.log 2>&1"
-screen -dmS exp2 bash -c "CUDA_VISIBLE_DEVICES=1 python evaluate_ipcfm.py --method ipcfm_b --exp2_sweep mu0 ... > results/exp2_ipcfm_b.log 2>&1; python evaluate_ipcfm.py --method ipcfm_c --exp2_sweep eps ... > results/exp2_ipcfm_c.log 2>&1"
-screen -dmS exp4 bash -c "CUDA_VISIBLE_DEVICES=2 python evaluate_ipcfm.py --method ipcfm_c --exp4_active_set ... > results/exp4.log 2>&1"
+CUDA_VISIBLE_DEVICES=0 nohup python evaluate_ipcfm.py    --method all --exp1_main ... > logs/exp1_burgers.log &
+CUDA_VISIBLE_DEVICES=1 nohup python evaluate_ipcfm_rd.py --method all --exp1_main ... > logs/exp1_rd.log &
+CUDA_VISIBLE_DEVICES=2 nohup python evaluate_ipcfm.py    --method ipcfm_b --exp2_sweep mu0 ... > logs/exp2_b.log &
+CUDA_VISIBLE_DEVICES=3 nohup python evaluate_ipcfm.py    --method ipcfm_c --exp2_sweep eps ... > logs/exp2_c.log &
 ```
-
-Reattach with `screen -r exp1`, detach again with `Ctrl+A D`.
 
 ---
 
@@ -213,14 +228,15 @@ Reattach with `screen -r exp1`, detach again with `Ctrl+A D`.
 
 | Flag | Default | Used by | Notes |
 |---|---:|---|---|
-| `--n_steps` | 100 | all | Euler integration steps |
-| `--solve_eps` | `1e-4` | A, C | Tikhonov regularization on $JJ^\top$ |
+| `--n_steps` | 100 | all | Euler integration steps over $\tau \in [0, 1]$ |
+| `--solve_eps` | `1e-4` | A, C | Tikhonov regularisation on $JJ^\top$ |
 | `--slack_threshold` | `0.05` | A | near-active band |
-| `--mu_0` | `1e-3` | B | initial barrier coefficient |
-| `--decay_rate` | `3.0` | B | barrier time decay |
-| `--eps` | `1e-3` | C | active-set threshold |
+| `--mu_0` | `1e-3` | B | initial barrier coefficient $\mu(\tau) = \mu_0 e^{-3\tau}$ |
+| `--decay_rate` | `3.0` | B | barrier flow-time decay |
+| `--eps` | `1e-3` | C | active-set activation threshold |
+| `--exp1_equality_k` | `20` | A/B/C + baselines (Burgers' only) | Godunov unrolling steps; `20` gives symmetric equality constraints across methods |
 
-Recommended safe ranges (from Exp 2): $\mu_0 \in [10^{-4}, 10^{-3}]$ for B; $\epsilon \in [10^{-4}, 10^{-2}]$ for C. Avoid $\mu_0 \ge 10^{-2}$ or $\epsilon \ge 10^{-1}$ — the method stays finite thanks to the safety guards, but the projection becomes physically meaningless.
+**Recommendations from the $N = 100$ sensitivity sweeps:** $\varepsilon \in [10^{-4}, 10^{-2}]$ for C (with $10^{-2}$ marginally best on Burgers'); $\mu_0 \in [10^{-4}, 10^{-3}]$ for B (though B fails to match C on either task). Avoid $\mu_0 \ge 10^{-2}$ or $\varepsilon \ge 10^{-1}$ — the method stays finite thanks to the safety guards, but the projection becomes physically meaningless.
 
 ---
 
@@ -228,25 +244,37 @@ Recommended safe ranges (from Exp 2): $\mu_0 \in [10^{-4}, 10^{-3}]$ for B; $\ep
 
 ```
 .
-├── evaluate_ipcfm.py          # main evaluation driver (Exp 1/2/3/4)
-├── visualize_samples.py       # final-sample heatmap grids
-├── visualize_trajectory.py    # full-flow trajectory grids
-├── configs/burgers1d.yml      # FFM/FNO config
+├── evaluate_ipcfm.py            # Burgers' evaluation driver (Exp 1/2/4/5)
+├── evaluate_ipcfm_rd.py         # Reaction-Diffusion evaluation driver
+├── visualize_samples.py         # Burgers' final-sample heatmap grids
+├── visualize_trajectory.py      # Burgers' full-flow trajectory grids (k=20 symmetric)
+├── visualize_trajectory_rd.py   # Reaction-Diffusion full-flow trajectory grids
+├── make_method_comparison.py    # single-PNG 2x6 method-comparison figure (with cache)
+├── generate_rd_train_test.py    # RD dataset generator
+├── configs/
+│   ├── burgers1d.yml            # FFM/FNO config (Burgers')
+│   └── rd1d.yml                 # FFM/FNO config (Reaction-Diffusion)
 ├── pcfm/
-│   ├── ipcfm_sampling.py      # Strategies A, B, C
-│   ├── pcfm_sampling.py       # base PCFM sampling
-│   └── baselines.py           # soft_penalty baseline
+│   ├── ipcfm_sampling.py        # Strategies A, B, C; EntropyIneq; HeatMaxPrincipleIneq
+│   ├── pcfm_sampling.py         # base PCFM sampling + FFM Euler loop
+│   ├── constraints.py           # equality residuals (IC, Godunov, mass, RD reaction)
+│   └── baselines.py             # vanilla + pcfm_equality
+├── datasets/
+│   ├── burgers1d.py             # Burgers' dataset loader
+│   ├── rd1d.py                  # RD dataset loader
+│   ├── generate_burgers1d_data.py / generate_RD1d_data.py  # data generators
+│   └── data/                    # symlink -> I-PCFM_data (contains .h5 files)
 ├── models/
-│   ├── fno.py                 # FNO wrapper (used for the vector field)
-│   ├── functional.py          # FFM wrapper
-│   └── 20000.pt               # pretrained checkpoint (NOT in git; see Setup)
-├── datasets/I-PCFM_data/      # Burgers .h5 test/train sets (NOT in git; see Setup)
-├── scripts/training/          # training entry point (if retraining from scratch)
-└── results/                   # experiment outputs
+│   ├── fno.py                   # FNO wrapper (vector field backbone)
+│   ├── functional.py            # FFM wrapper
+│   └── 20000.pt                 # Burgers' pretrained checkpoint (NOT in git; see Setup)
+├── logs/rd_ic/20000.pt          # RD pretrained checkpoint (generated by training script)
+├── scripts/training/main.py     # training entry point
+└── results/                     # experiment outputs (JSON, PNG, logs)
 ```
 
 ---
 
 ## Acknowledgements
 
-Claude (Anthropic) was used as a coding assistant throughout this project to help implement and debug the I-PCFM sampling strategies, the evaluation/visualization scripts, and to draft portions of this README.
+Claude (Anthropic) was used as a coding assistant throughout this project to help implement and debug the I-PCFM sampling strategies, the evaluation/visualisation scripts, the Reaction-Diffusion extension, and to draft portions of this README.

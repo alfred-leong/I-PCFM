@@ -47,10 +47,13 @@ def run_with_snapshots(method_name, model, u_true_1, hfunc, ineq, device, seed):
         snapshots[0.0] = u[0].cpu().numpy().copy()
 
     method_kwargs = {}
-    if method_name == 'ipcfm_b':
-        method_kwargs = {'mu_0': 0.001}
+    if method_name == 'ipcfm_a':
+        method_kwargs = {'slack_threshold': 0.05, 'eps': 1e-4, 'newtonsteps': 1}
+    elif method_name == 'ipcfm_b':
+        method_kwargs = {'mu_0': 1e-4, 'decay_rate': 3.0,
+                         'guided_interpolation': True, 'newtonsteps': 1}
     elif method_name == 'ipcfm_c':
-        method_kwargs = {'eps': 0.001}
+        method_kwargs = {'eps': 1e-2, 'solve_eps': 1e-4, 'newtonsteps': 1}
 
     for step_idx, tau in enumerate(tqdm(ts, desc=f'{method_name}', leave=False)):
         with torch.no_grad():
@@ -91,15 +94,11 @@ def run_with_snapshots(method_name, model, u_true_1, hfunc, ineq, device, seed):
     return snapshots
 
 
-EQUALITY_METHODS = {'vanilla', 'pcfm_equality', 'soft_penalty'}
-
-
 def render_one(sample_idx, model, u_true_all, ineq, device, out_path):
     u_true_1 = u_true_all[sample_idx]
     nx, nt = u_true_1.shape
-    # Match visualize_samples: k=5 collocation points for equality methods, k=20 for ipcfm methods
-    hfunc_k5 = build_hfunc(u_true_1, device, nx, nt, k=5)
-    hfunc_k20 = build_hfunc(u_true_1, device, nx, nt, k=20)
+    # Symmetric k=20 Godunov unrolling across all methods (PCFM baselines and I-PCFM).
+    hfunc = build_hfunc(u_true_1, device, nx, nt, k=20)
     seed = 1000 + sample_idx
 
     n_methods = len(METHODS)
@@ -131,7 +130,6 @@ def render_one(sample_idx, model, u_true_all, ineq, device, out_path):
     for row_idx, method in enumerate(METHODS):
         print(f'Running {method}...')
         try:
-            hfunc = hfunc_k5 if method in EQUALITY_METHODS else hfunc_k20
             snapshots = run_with_snapshots(method, model, u_true_1, hfunc, ineq, device, seed)
         except Exception as e:
             print(f'  ERROR: {e}')

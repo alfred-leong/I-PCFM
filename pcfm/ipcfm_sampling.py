@@ -82,6 +82,145 @@ class EntropyIneq:
         return J
 
 
+class HeatMaxPrincipleIneq:
+    """
+    Maximum principle for 1D heat equation.
+
+    Given per-sample bounds u0_min, u0_max (from the initial condition),
+    the constraints are:
+        g_upper[i, n] = u[i, n] - u0_max <= 0   for n >= 1
+        g_lower[i, n] = u0_min - u[i, n] <= 0   for n >= 1
+
+    Total constraints = 2 * nx * (nt - 1).
+    """
+    def __init__(self, nx: int, nt: int, u0_min: float = -1.0, u0_max: float = 1.0):
+        self.nx = nx
+        self.nt = nt
+        self.u0_min = float(u0_min)
+        self.u0_max = float(u0_max)
+        self.n_upper = nx * (nt - 1)
+        self.n_lower = nx * (nt - 1)
+        self.m = self.n_upper + self.n_lower
+        self.n_constraints = self.m
+
+    def values(self, u_flat: torch.Tensor) -> torch.Tensor:
+        u = u_flat.view(self.nx, self.nt)
+        # skip t=0 (IC is an equality constraint)
+        u_t = u[:, 1:]  # (nx, nt-1)
+        g_upper = (u_t - self.u0_max).reshape(-1)
+        g_lower = (self.u0_min - u_t).reshape(-1)
+        return torch.cat([g_upper, g_lower], dim=0)
+
+    def jacobian_rows(self, active_indices, device=None):
+        if device is None and len(active_indices) > 0:
+            if torch.is_tensor(active_indices):
+                device = active_indices.device
+        if device is None:
+            device = torch.device('cpu')
+        n = self.nx * self.nt
+        if len(active_indices) == 0:
+            return torch.empty(0, n, device=device)
+        rows = torch.zeros(len(active_indices), n, device=device)
+        for r, idx in enumerate(active_indices):
+            idx_int = int(idx.item() if torch.is_tensor(idx) else idx)
+            if idx_int < self.n_upper:
+                # Upper bound: u[i, j+1] - u0_max
+                local = idx_int
+                i = local // (self.nt - 1)
+                j = local % (self.nt - 1) + 1
+                rows[r, i * self.nt + j] = 1.0
+            else:
+                # Lower bound: u0_min - u[i, j+1]
+                local = idx_int - self.n_upper
+                i = local // (self.nt - 1)
+                j = local % (self.nt - 1) + 1
+                rows[r, i * self.nt + j] = -1.0
+        return rows
+
+
+class RDEnergyGronwallIneq:
+    """
+    L² Gronwall envelope for 1D Fisher-KPP reaction-diffusion:
+        E(t) := ∫ u(x,t)^2 dx   <=   bound(t)    for t > 0
+    with E_0 = ∫ u_0(x)^2 dx. Two valid upper envelopes are available
+    (both derived from d/dt E = -2ν ∫ u_x^2 + 2ρ ∫ u^2(1-u), dropping
+    the diffusion term):
+
+        exp:   bound(t) = E_0 * exp(2 * rho * t)          (Gronwall on E)
+        tight: bound(t) = E_0 + (8 * rho * L / 27) * t    (u^2(1-u) <= 4/27)
+
+    The tight form is linear in t and exploits the pointwise bound on the
+    reaction rate for u in [0, 1]. For small E_0 the exp form is tighter;
+    for large E_0 the tight form is tighter. Setting mode='min' uses the
+    minimum of the two at each time step — still a valid upper bound and
+    the strongest linear-combination of the two envelopes.
+
+    One scalar constraint per time step (t_1 .. t_{nt-1}), total nt - 1.
+        g_n(u) = sum_i u[i, n]^2 * dx - bound(t_n) <= 0
+    Jacobian: d g_n / d u[i, n] = 2 * u[i, n] * dx; zero elsewhere.
+
+    Nonlinear in u, so the Jacobian is state-dependent. We cache the flat u
+    from the most-recent values() call so that jacobian_rows() can compute
+    the correct row without a changed interface.
+    """
+
+    def __init__(self, nx: int, nt: int, dx: float, t_grid: Tensor,
+                 rho: float, E0: float, L: float = 1.0,
+                 mode: str = 'min'):
+        if mode not in ('exp', 'tight', 'min'):
+            raise ValueError(f"mode must be 'exp'|'tight'|'min', got {mode!r}")
+        self.nx = nx
+        self.nt = nt
+        self.dx = float(dx)
+        self.rho = float(rho)
+        self.E0 = float(E0)
+        self.L = float(L)
+        self.mode = mode
+        self.t_grid = t_grid.detach().clone()  # CPU; moved to device on use
+        self.n_constraints = nt - 1
+        self._last_u_flat = None  # cached for jacobian_rows
+
+    def _bounds(self, device, dtype):
+        t = self.t_grid.to(device=device, dtype=dtype)
+        exp_env = self.E0 * torch.exp(2.0 * self.rho * t)
+        tight_env = self.E0 + (8.0 * self.rho * self.L / 27.0) * t
+        if self.mode == 'exp':
+            return exp_env
+        if self.mode == 'tight':
+            return tight_env
+        return torch.minimum(exp_env, tight_env)
+
+    def values(self, u_flat: Tensor) -> Tensor:
+        """g(u) for all constraints; g <= 0 is feasible. Returns (nt-1,)."""
+        self._last_u_flat = u_flat.detach()
+        u = u_flat.view(self.nx, self.nt)
+        E_t = (u * u).sum(dim=0) * self.dx  # (nt,)
+        bound = self._bounds(u.device, u.dtype)
+        return (E_t - bound)[1:]  # skip t = 0 (IC is equality-enforced)
+
+    def jacobian_rows(self, active_indices, device=None) -> Tensor:
+        """Rows of the Jacobian for the active constraints."""
+        if self._last_u_flat is None:
+            raise RuntimeError("Call values(u_flat) before jacobian_rows().")
+        if device is None and torch.is_tensor(active_indices) and len(active_indices) > 0:
+            device = active_indices.device
+        if device is None:
+            device = self._last_u_flat.device
+        n_total = self.nx * self.nt
+        n_active = len(active_indices)
+        if n_active == 0:
+            return torch.empty(0, n_total, device=device)
+
+        u = self._last_u_flat.to(device).view(self.nx, self.nt)
+        rows = torch.zeros(n_active, n_total, device=device, dtype=u.dtype)
+        for r, idx in enumerate(active_indices):
+            n_idx = int(idx.item() if torch.is_tensor(idx) else idx) + 1  # constraint n -> time n+1
+            # d g_n / d u[i, n_idx] = 2 * u[i, n_idx] * dx
+            flat_cols = torch.arange(self.nx, device=device) * self.nt + n_idx
+            rows[r, flat_cols] = 2.0 * u[:, n_idx] * self.dx
+        return rows
+
+
 # ---------------------------------------------------------------------------
 # Strategy A — Slack Variable Reformulation
 # ---------------------------------------------------------------------------

@@ -1,6 +1,15 @@
 # Data files
 datasets/I-PCFM_data/
-datasets/data/
+datasets/data
+
+# Extra
+logs/
+results/*logs
+results/sample_heatmaps
+results/method_comparison_cache.npz
+generate_rd_train_test.py
+make_method_comparison.py
+plot_method_comparison.py
 
 # Models 
 models/*.pt

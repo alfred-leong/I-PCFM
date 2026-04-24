@@ -14,6 +14,29 @@ def compute_jacobian(fn: Callable[[torch.Tensor], torch.Tensor], inputs: torch.T
     return J.reshape(m, n)
 
 
+def _safe_solve(JJt: torch.Tensor, rhs: torch.Tensor, reg: float, device) -> torch.Tensor:
+    """Solve (JJt + reg*I) x = rhs. Fall back to lstsq on rank-deficient systems;
+    return zeros on total failure or non-finite inputs."""
+    if torch.isnan(JJt).any() or torch.isinf(JJt).any() or \
+       torch.isnan(rhs).any() or torch.isinf(rhs).any():
+        return torch.zeros_like(rhs)
+    k = JJt.shape[0]
+    A = JJt + reg * torch.eye(k, device=device)
+    try:
+        sol = torch.linalg.solve(A, rhs)
+    except RuntimeError:
+        sol = torch.full_like(rhs, float('nan'))
+    if torch.isfinite(sol).all():
+        return sol
+    try:
+        sol = torch.linalg.lstsq(A, rhs.unsqueeze(-1)).solution.squeeze(-1)
+    except RuntimeError:
+        return torch.zeros_like(rhs)
+    if not torch.isfinite(sol).all():
+        return torch.zeros_like(rhs)
+    return sol
+
+
 def fast_project_batched(xi_batch: torch.Tensor, h_func: Callable[[torch.Tensor], torch.Tensor], max_iter: int = 1) -> torch.Tensor:
     """
     Final projection step in PCFM
@@ -142,8 +165,13 @@ def pcfm_sample(
     u_corr = ut1.clone()
 
     for _ in range(newtonsteps):
+        if not torch.isfinite(u_corr).all():
+            u_corr = ut1.clone()
+            break
         res = hfunc(u_corr)
         J = compute_jacobian(hfunc, u_corr)
+        if not (torch.isfinite(res).all() and torch.isfinite(J).all()):
+            break
         JJt = J @ J.T
         rhs = res
 
@@ -152,9 +180,13 @@ def pcfm_sample(
             rhs = J @ delta + res.unsqueeze(-1)
             rhs = rhs.squeeze(-1)
 
-        A = JJt + eps * torch.eye(JJt.shape[0], device=u_flat.device)
-        lam = torch.linalg.solve(A, rhs)
-        u_corr = u_corr - J.T @ lam
+        lam = _safe_solve(JJt, rhs, eps, u_flat.device)
+        correction = J.T @ lam
+        u_ref_norm = u_corr.norm().clamp(min=1.0)
+        corr_norm = correction.norm()
+        if corr_norm > 10.0 * u_ref_norm:
+            correction = correction * (10.0 * u_ref_norm / corr_norm)
+        u_corr = u_corr - correction
 
     t_next = t + dt
 

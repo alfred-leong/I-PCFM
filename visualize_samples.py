@@ -113,7 +113,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
 
     # Build hfuncs: k=5 for vanilla/pcfm_equality, k=20 for ipcfm methods
-    EQUALITY_METHODS = {'vanilla', 'pcfm_equality', 'soft_penalty'}
+    EQUALITY_METHODS = {'vanilla', 'pcfm_equality'}
     print(f'Building hfuncs for {len(good_indices)} pre-screened samples...')
     hfuncs_k5 = {j: build_hfunc(u_true_all[j], device, nx, nt, k=5) for j in good_indices}
     hfuncs_k20 = {j: build_hfunc(u_true_all[j], device, nx, nt, k=20) for j in good_indices}
