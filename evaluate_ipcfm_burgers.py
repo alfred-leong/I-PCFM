@@ -1,16 +1,17 @@
 """
-evaluate_ipcfm.py — Unified evaluation script for I-PCFM experiments.
+evaluate_ipcfm_burgers.py — I-PCFM evaluation script for the 1-D inviscid
+Burgers' equation (entropy-inequality task).
 
 Usage examples:
-    python evaluate_ipcfm.py --method pcfm_equality --n_steps 10 --n_samples 4
-    python evaluate_ipcfm.py --method ipcfm_b --n_samples 64 --exp2_sweep mu0
-    python evaluate_ipcfm.py --method ipcfm_c --n_samples 64 --exp2_sweep eps
-    python evaluate_ipcfm.py --method ipcfm_a --n_samples 64
-    python evaluate_ipcfm.py --method all --n_steps 100 --n_samples 32 --exp3_timing
-    python evaluate_ipcfm.py --method ipcfm_c --n_samples 64 --n_steps 100 --exp4_active_set
-    python evaluate_ipcfm.py --method all --n_steps 200 --n_samples 512 --exp1_main
-    python evaluate_ipcfm.py --method all --exp5_constraint_density --n_samples 30
-    python evaluate_ipcfm.py --method all --exp5_constraint_density --k_values 1,5,10,20 --n_samples 30
+    python evaluate_ipcfm_burgers.py --method pcfm_equality --n_steps 10 --n_samples 4
+    python evaluate_ipcfm_burgers.py --method ipcfm_b --n_samples 64 --exp2_sweep mu0
+    python evaluate_ipcfm_burgers.py --method ipcfm_c --n_samples 64 --exp2_sweep eps
+    python evaluate_ipcfm_burgers.py --method ipcfm_a --n_samples 64
+    python evaluate_ipcfm_burgers.py --method all --n_steps 100 --n_samples 32 --exp3_timing
+    python evaluate_ipcfm_burgers.py --method ipcfm_c --n_samples 64 --n_steps 100 --exp4_active_set
+    python evaluate_ipcfm_burgers.py --method all --n_steps 200 --n_samples 512 --exp1_main
+    python evaluate_ipcfm_burgers.py --method all --exp5_constraint_density --n_samples 30
+    python evaluate_ipcfm_burgers.py --method all --exp5_constraint_density --k_values 1,5,10,20 --n_samples 30
 """
 
 import argparse
@@ -84,7 +85,7 @@ def parse_args():
 
     # File paths
     parser.add_argument('--ckpt', type=str,
-        default='/external1/alfred/pcfm_logs/burgers_ic/20000.pt',
+        default='logs/burgers_ic/20000.pt',
         help='Path to model checkpoint (falls back to latest.pt)')
     parser.add_argument('--data', type=str,
         default='datasets/data/burgers_test_nIC30_nBC30.h5',

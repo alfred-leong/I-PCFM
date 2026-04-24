@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(__file__))
-from evaluate_ipcfm import (
+from evaluate_ipcfm_burgers import (
     load_model, load_test_data, run_sampling, build_entropy_ineq, build_hfunc,
     METHOD_FN_MAP,
 )
@@ -82,7 +82,7 @@ def run_single_sample(method_name, model, u_true_1, hfunc, ineq, device, seed):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt', default='models/20000.pt')
+    parser.add_argument('--ckpt', default='logs/burgers_ic/20000.pt')
     parser.add_argument('--data', default='datasets/I-PCFM_data/burgers_test_nIC30_nBC30.h5')
     parser.add_argument('--out_dir', default='results/sample_heatmaps_v4')
     parser.add_argument('--n_samples', type=int, default=20,

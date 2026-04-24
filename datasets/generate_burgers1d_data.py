@@ -89,20 +89,21 @@ def generate_burgers_dataset_diffBCs(
     print(f"Saved to {full_path}")
     return full_path
 
-# training data: vary IC and BC 
-generate_burgers_dataset(
-    path="datasets/data/", N_ic=80, N_bc=80, seed = 42, filename="burgers_train"
-)
-generate_burgers_dataset(
-    path="datasets/data/", N_ic=30, N_bc=30, seed = 0, filename="burgers_test"
-)
+if __name__ == "__main__":
+    # training data: vary IC and BC
+    generate_burgers_dataset(
+        path="datasets/data/", N_ic=80, N_bc=80, seed=42, filename="burgers_train"
+    )
+    generate_burgers_dataset(
+        path="datasets/data/", N_ic=30, N_bc=30, seed=0, filename="burgers_test"
+    )
 
-# sampling data for fixed ICs
-generate_burgers_dataset(
-    path="datasets/data/", N_ic=20, N_bc=512, Nx=100, Nt=100, seed=42, filename="burgers_sampling_diffICs"
-)
+    # sampling data for fixed ICs
+    generate_burgers_dataset(
+        path="datasets/data/", N_ic=20, N_bc=512, Nx=100, Nt=100, seed=42, filename="burgers_sampling_diffICs"
+    )
 
-# sampling data for fixed BCs
-generate_burgers_dataset_diffBCs(
-    path="datasets/data/", N_bc=20, N_ic=512, Nx=100, Nt=100, seed=42, filename="burgers_sampling_diffBCs"
-)
+    # sampling data for fixed BCs
+    generate_burgers_dataset_diffBCs(
+        path="datasets/data/", N_bc=20, N_ic=512, Nx=100, Nt=100, seed=42, filename="burgers_sampling_diffBCs"
+    )

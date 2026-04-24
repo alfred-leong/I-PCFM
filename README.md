@@ -1,5 +1,7 @@
 # I-PCFM: Inequality-aware Physics-Constrained Flow Matching
 
+> **Note for reviewers.** This repository is anonymised for double-blind review. All datasets and pretrained checkpoints can be regenerated locally from the included generators and training scripts (see Setup below); no external downloads are required. Reproducing both datasets and training both FFM models takes roughly 7–8 h on a single L40-class GPU (plus ~10 min of CPU for the data generation), after which all reported experiments can be reproduced end-to-end.
+
 This repository contains the code for **I-PCFM: Inequality-aware Physics-Constrained Flow Matching**, which extends Physics-Constrained Flow Matching (PCFM) to **jointly enforce equality and inequality constraints** during sampling, and evaluates three strategies on two 1-D PDEs: the **inviscid Burgers' equation** (with the Oleinik entropy condition) and the **Reaction-Diffusion (Fisher-KPP) equation** (with the invariant interval $u \in [0, 1]$).
 
 ---
@@ -52,12 +54,17 @@ Per-sample flow-trajectory snapshots at $\tau \in \{0, 0.2, 0.4, 0.6, 0.8, 1.0\}
 
 ## Setup
 
-### 1. Clone & create the conda environment
+### 1. Download & create the conda environment
+
+Browse or download the repository archive from the anonymised mirror:
+
+```
+https://anonymous.4open.science/r/I-PCFM/
+```
+
+Unpack it locally, `cd` into the extracted directory, then:
 
 ```bash
-git clone https://github.com/alfred-leong/I-PCFM.git
-cd I-PCFM
-
 conda env create -f pcfm_env.yml -n i-pcfm
 conda activate i-pcfm
 
@@ -74,40 +81,37 @@ python -c "import torch, h5py, neuralop, gpytorch; print('torch', torch.__versio
 
 You should see `torch 2.4.1 cuda True` on a CUDA-capable host.
 
-### 2. Download the Burgers' dataset and pretrained checkpoint
+### 2. Generate the Burgers' dataset and train its FFM
 
-Both are hosted on Hugging Face:
-
-- Dataset: [`alfred-leong/I-PCFM-burgers`](https://huggingface.co/datasets/alfred-leong/I-PCFM-burgers) — 4 `.h5` files, ~1.1 GB
-- Model: [`alfred-leong/I-PCFM-ffm-burgers`](https://huggingface.co/alfred-leong/I-PCFM-ffm-burgers) — `20000.pt`, ~205 MB
+The Burgers' dataset is produced by a parallel numerical solver (Godunov flux scheme) in `datasets/generate_burgers1d_data.py`. The training + test splits together are ~300 MB:
 
 ```bash
-# dataset → datasets/I-PCFM_data/ (evaluation code looks in datasets/data/ via symlink)
-mkdir -p datasets/I-PCFM_data
-huggingface-cli download alfred-leong/I-PCFM-burgers \
-    --repo-type dataset --local-dir datasets/I-PCFM_data
-ln -sfn I-PCFM_data datasets/data   # code default paths assume datasets/data/
-
-# pretrained FFM checkpoint → models/
-mkdir -p models
-huggingface-cli download alfred-leong/I-PCFM-ffm-burgers 20000.pt \
-    --local-dir models
+mkdir -p datasets/data
+# Produces burgers_train_nIC80_nBC80.h5 and burgers_test_nIC30_nBC30.h5 under datasets/data/
+python generate_burgers_train_test.py
 ```
 
-### 3. Generate the Reaction-Diffusion dataset and train the FFM
+Then train a fresh FFM model (20 k iterations, ~3.5 h on one L40):
+
+```bash
+PYTHONPATH=. python scripts/training/main.py \
+    configs/burgers1d.yml --savename burgers_ic
+# Writes checkpoints every 2000 steps to logs/burgers_ic/*.pt
+```
+
+### 3. Generate the Reaction-Diffusion dataset and train its FFM
 
 The RD dataset is generated locally from `datasets/generate_RD1d_data.py` (parallel numerical solve):
 
 ```bash
-# Produces RD_neumann_train_nIC80_nBC80.h5 (~310 MB)
-# and    RD_neumann_test_nIC30_nBC30.h5   (~45 MB) under datasets/data/
+# Produces RD_neumann_train_nIC80_nBC80.h5 and RD_neumann_test_nIC30_nBC30.h5 under datasets/data/
 python generate_rd_train_test.py
 ```
 
 Then train a fresh FFM model (20 k iterations, ~3.5 h on one L40):
 
 ```bash
-PYTHONPATH=. CUDA_VISIBLE_DEVICES=0 python scripts/training/main.py \
+PYTHONPATH=. python scripts/training/main.py \
     configs/rd1d.yml --savename rd_ic
 # Writes checkpoints every 2000 steps to logs/rd_ic/*.pt
 ```
@@ -119,7 +123,7 @@ python -c "
 import torch
 from models import get_flow_model
 from scripts.training.utils import load_config
-for cfg_path, ckpt in [('configs/burgers1d.yml', 'models/20000.pt'),
+for cfg_path, ckpt in [('configs/burgers1d.yml', 'logs/burgers_ic/20000.pt'),
                        ('configs/rd1d.yml',       'logs/rd_ic/20000.pt')]:
     cfg = load_config(cfg_path)
     m = get_flow_model(cfg.model, cfg.encoder).cuda().eval()
@@ -134,7 +138,7 @@ for cfg_path, ckpt in [('configs/burgers1d.yml', 'models/20000.pt'),
 ## Reproducing the Experiments
 
 Evaluation is split by task:
-- **Burgers'** → `evaluate_ipcfm.py` (entropy inequality)
+- **Burgers'** → `evaluate_ipcfm_burgers.py` (entropy inequality)
 - **Reaction-Diffusion** → `evaluate_ipcfm_rd.py` (invariant-interval inequality, `--ineq linear`)
 
 Pre-generated outputs live in [`results/`](results/); the commands below reproduce each one end-to-end.
@@ -144,9 +148,9 @@ Pre-generated outputs live in [`results/`](results/); the commands below reprodu
 Burgers' (5 methods, N=100, k=20 symmetric):
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python evaluate_ipcfm.py \
+python evaluate_ipcfm_burgers.py \
     --method all --exp1_main --no_wandb \
-    --ckpt models/20000.pt \
+    --ckpt logs/burgers_ic/20000.pt \
     --data datasets/data/burgers_test_nIC30_nBC30.h5 \
     --n_samples 100 --n_steps 100 \
     --result_suffix _n100_joint
@@ -156,7 +160,7 @@ CUDA_VISIBLE_DEVICES=0 python evaluate_ipcfm.py \
 Reaction-Diffusion (5 methods, N=100):
 
 ```bash
-CUDA_VISIBLE_DEVICES=1 python evaluate_ipcfm_rd.py \
+python evaluate_ipcfm_rd.py \
     --method all --exp1_main --no_wandb \
     --ckpt logs/rd_ic/20000.pt \
     --n_samples 100 --n_steps 100 \
@@ -168,16 +172,16 @@ CUDA_VISIBLE_DEVICES=1 python evaluate_ipcfm_rd.py \
 
 ```bash
 # Sweep μ_0 for I-PCFM-B over {1e-4, 1e-3, 1e-2, 1e-1}
-CUDA_VISIBLE_DEVICES=2 python evaluate_ipcfm.py \
+python evaluate_ipcfm_burgers.py \
     --method ipcfm_b --exp2_sweep mu0 --no_wandb \
-    --ckpt models/20000.pt \
+    --ckpt logs/burgers_ic/20000.pt \
     --data datasets/data/burgers_test_nIC30_nBC30.h5 \
     --n_samples 100 --n_steps 100 --result_suffix _n100_joint
 
 # Sweep ε for I-PCFM-C over {1e-4, 1e-3, 1e-2, 1e-1}
-CUDA_VISIBLE_DEVICES=3 python evaluate_ipcfm.py \
+python evaluate_ipcfm_burgers.py \
     --method ipcfm_c --exp2_sweep eps --no_wandb \
-    --ckpt models/20000.pt \
+    --ckpt logs/burgers_ic/20000.pt \
     --data datasets/data/burgers_test_nIC30_nBC30.h5 \
     --n_samples 100 --n_steps 100 --result_suffix _n100_joint
 # -> results/exp2_tradeoff_n100_joint.json (merged by both runs)
@@ -186,9 +190,9 @@ CUDA_VISIBLE_DEVICES=3 python evaluate_ipcfm.py \
 ### Exp 4 — active-set size vs flow time (Burgers', I-PCFM-C)
 
 ```bash
-python evaluate_ipcfm.py \
+python evaluate_ipcfm_burgers.py \
     --method ipcfm_c --exp4_active_set --no_wandb \
-    --ckpt models/20000.pt \
+    --ckpt logs/burgers_ic/20000.pt \
     --data datasets/data/burgers_test_nIC30_nBC30.h5 \
     --n_samples 100 --n_steps 100 --result_suffix _n100_joint
 # -> results/exp4_active_set_n100_joint.{json,png}, active_set_log_n100_joint.json
@@ -199,7 +203,7 @@ python evaluate_ipcfm.py \
 ```bash
 # Per-task flow-trajectory grids (1 PNG per sample, 6 methods x 6 tau snapshots)
 python visualize_trajectory.py \
-    --ckpt models/20000.pt \
+    --ckpt logs/burgers_ic/20000.pt \
     --data datasets/data/burgers_test_nIC30_nBC30.h5 \
     --out_dir results/sample_heatmaps_k20 --n_samples 10
 python visualize_trajectory_rd.py \
@@ -216,10 +220,10 @@ python make_method_comparison.py --recompute     # force re-run of all 10 method
 Exp 1 (Burgers'), Exp 1 (RD), Exp 2, and Exp 4 are independent — launch each on its own GPU via `nohup` or `screen`:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 nohup python evaluate_ipcfm.py    --method all --exp1_main ... > logs/exp1_burgers.log &
+CUDA_VISIBLE_DEVICES=0 nohup python evaluate_ipcfm_burgers.py    --method all --exp1_main ... > logs/exp1_burgers.log &
 CUDA_VISIBLE_DEVICES=1 nohup python evaluate_ipcfm_rd.py --method all --exp1_main ... > logs/exp1_rd.log &
-CUDA_VISIBLE_DEVICES=2 nohup python evaluate_ipcfm.py    --method ipcfm_b --exp2_sweep mu0 ... > logs/exp2_b.log &
-CUDA_VISIBLE_DEVICES=3 nohup python evaluate_ipcfm.py    --method ipcfm_c --exp2_sweep eps ... > logs/exp2_c.log &
+CUDA_VISIBLE_DEVICES=2 nohup python evaluate_ipcfm_burgers.py    --method ipcfm_b --exp2_sweep mu0 ... > logs/exp2_b.log &
+CUDA_VISIBLE_DEVICES=3 nohup python evaluate_ipcfm_burgers.py    --method ipcfm_c --exp2_sweep eps ... > logs/exp2_c.log &
 ```
 
 ---
@@ -244,13 +248,14 @@ CUDA_VISIBLE_DEVICES=3 nohup python evaluate_ipcfm.py    --method ipcfm_c --exp2
 
 ```
 .
-├── evaluate_ipcfm.py            # Burgers' evaluation driver (Exp 1/2/4/5)
+├── evaluate_ipcfm_burgers.py            # Burgers' evaluation driver (Exp 1/2/4/5)
 ├── evaluate_ipcfm_rd.py         # Reaction-Diffusion evaluation driver
 ├── visualize_samples.py         # Burgers' final-sample heatmap grids
 ├── visualize_trajectory.py      # Burgers' full-flow trajectory grids (k=20 symmetric)
 ├── visualize_trajectory_rd.py   # Reaction-Diffusion full-flow trajectory grids
 ├── make_method_comparison.py    # single-PNG 2x6 method-comparison figure (with cache)
-├── generate_rd_train_test.py    # RD dataset generator
+├── generate_burgers_train_test.py  # Burgers' train + test dataset generator
+├── generate_rd_train_test.py    # RD train + test dataset generator
 ├── configs/
 │   ├── burgers1d.yml            # FFM/FNO config (Burgers')
 │   └── rd1d.yml                 # FFM/FNO config (Reaction-Diffusion)
@@ -263,12 +268,11 @@ CUDA_VISIBLE_DEVICES=3 nohup python evaluate_ipcfm.py    --method ipcfm_c --exp2
 │   ├── burgers1d.py             # Burgers' dataset loader
 │   ├── rd1d.py                  # RD dataset loader
 │   ├── generate_burgers1d_data.py / generate_RD1d_data.py  # data generators
-│   └── data/                    # symlink -> I-PCFM_data (contains .h5 files)
+│   └── data/                    # generated .h5 files land here
 ├── models/
 │   ├── fno.py                   # FNO wrapper (vector field backbone)
-│   ├── functional.py            # FFM wrapper
-│   └── 20000.pt                 # Burgers' pretrained checkpoint (NOT in git; see Setup)
-├── logs/rd_ic/20000.pt          # RD pretrained checkpoint (generated by training script)
+│   └── functional.py            # FFM wrapper
+├── logs/{burgers_ic,rd_ic}/     # per-task pretrained checkpoints (generated by training script)
 ├── scripts/training/main.py     # training entry point
 └── results/                     # experiment outputs (JSON, PNG, logs)
 ```
