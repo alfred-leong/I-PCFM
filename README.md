@@ -1,6 +1,6 @@
-# I-PCFM: Inequality-Constrained Physics Flow Matching
+# I-PCFM: Inequality-aware Physics-Constrained Flow Matching
 
-This repository contains the code for **I-PCFM: Inequality-Constrained Physics Flow Matching**, which extends Physics-Constrained Flow Matching (PCFM) to **jointly enforce equality and inequality constraints** during sampling, and evaluates three strategies on two 1-D PDEs: the **inviscid Burgers' equation** (with the Oleinik entropy condition) and the **Reaction-Diffusion (Fisher-KPP) equation** (with the invariant interval $u \in [0, 1]$).
+This repository contains the code for **I-PCFM: Inequality-aware Physics-Constrained Flow Matching**, which extends Physics-Constrained Flow Matching (PCFM) to **jointly enforce equality and inequality constraints** during sampling, and evaluates three strategies on two 1-D PDEs: the **inviscid Burgers' equation** (with the Oleinik entropy condition) and the **Reaction-Diffusion (Fisher-KPP) equation** (with the invariant interval $u \in [0, 1]$).
 
 ---
 
@@ -37,7 +37,7 @@ All three reuse the PCFM Newton-projection machinery and add a numerical safety 
 Here *Feas.* is the **joint-feasibility rate** — the fraction of samples with both equality residual and maximum inequality violation below $10^{-3}$. Full numbers (CE-IC, CE-CL, MMSE, SMSE, wall-clock) live in [`results/exp1_main_table_n100_joint.json`](results/exp1_main_table_n100_joint.json) and [`results/exp1_rd_linear_main_table_n100_joint.json`](results/exp1_rd_linear_main_table_n100_joint.json).
 
 **Key takeaways.**
-- **PCFM alone actively *hurts* inequality satisfaction**: Enforcing equality constraints only pushes solutions out of the inequality-feasible region (CE-Ineq rises ~5× on Burgers' and 20× on RD compared to Vanilla).
+- **PCFM alone actively *hurts* inequality satisfaction**: Enforcing only equality constraints pushes solutions out of the inequality-feasible region (CE-Ineq rises ~5× on Burgers' and 20× on RD compared to Vanilla).
 - **I-PCFM-C achieves the best feasibility on both tasks**: Active-set projection achieves highest joint feasibility while being the fastest I-PCFM variant
 
 ### Visual comparison
@@ -277,4 +277,4 @@ CUDA_VISIBLE_DEVICES=3 nohup python evaluate_ipcfm.py    --method ipcfm_c --exp2
 
 ## Acknowledgements
 
-Claude (Anthropic) was used as a coding assistant throughout this project to help implement and debug the I-PCFM sampling strategies, the evaluation/visualisation scripts, the Reaction-Diffusion extension, and to draft portions of this README.
+Claude (Anthropic) was used as a coding assistant throughout this project to help implement and debug the I-PCFM sampling strategies, the evaluation/visualisation scripts, and to draft portions of this README.
